@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Health">
+  <meta name="description" content="A private, local-only health consistency dashboard.">
+  <title>Health Dashboard</title>
+  <link rel="manifest" href="manifest.webmanifest?v=health-public-v3">
+  <link rel="icon" type="image/png" href="icons/icon-192.png?v=health-public-v3">
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=health-public-v3">
+  <link rel="stylesheet" href="styles.css?v=health-public-v3">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow" id="today-label">Today</p>
+        <h1>Health</h1>
+      </div>
+      <button class="privacy-pill" id="privacy-details" type="button" aria-label="View privacy details">
+        <span class="privacy-dot" aria-hidden="true"></span>
+        Private on this device
+      </button>
+    </header>
+
+    <div id="storage-alert" class="storage-alert" role="alert" hidden></div>
+
+    <main>
+      <section class="view is-active" data-view="today" aria-labelledby="today-heading">
+        <h2 id="today-heading" class="sr-only">Today</h2>
+        <article class="score-hero dark-card">
+          <div class="score-copy">
+            <p class="eyebrow muted">Daily foundation</p>
+            <p class="hero-title" id="daily-score">0 of 5</p>
+            <p class="hero-subtitle" id="score-message">Build the day one decision at a time.</p>
+          </div>
+          <svg class="score-ring" viewBox="0 0 120 120" role="img" aria-label="Daily score progress">
+            <circle class="ring-track" cx="60" cy="60" r="48"></circle>
+            <circle class="ring-progress" id="score-ring" cx="60" cy="60" r="48"></circle>
+            <text id="score-ring-text" x="60" y="66" text-anchor="middle">0</text>
+          </svg>
+        </article>
+
+        <article class="next-card light-card">
+          <p class="eyebrow">Best next move</p>
+          <p id="recommended-action">Protect tonight’s sleep window.</p>
+        </article>
+
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Five points</p>
+            <h2>Today’s foundations</h2>
+          </div>
+          <span class="small-pill" id="sleep-target-pill">6.5 h sleep</span>
+        </div>
+        <div id="habit-list" class="habit-list" aria-live="polite"></div>
+
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">One minute</p>
+            <h2>Daily check-in</h2>
+          </div>
+          <span id="save-status" class="save-status" aria-live="polite">Local only</span>
+        </div>
+        <form class="checkin-card light-card" id="checkin-form">
+          <div class="field-grid two-up">
+            <label>
+              <span>Sleep</span>
+              <span class="input-unit"><input id="sleep-hours" name="sleepHours" type="number" min="0" max="24" step="0.25" inputmode="decimal" placeholder="6.0"><small>hours</small></span>
+            </label>
+            <label>
+              <span>Weight</span>
+              <span class="input-unit"><input id="weight-lb" name="weightLb" type="number" min="50" max="500" step="0.1" inputmode="decimal" placeholder="175.0"><small>lb</small></span>
+            </label>
+          </div>
+
+          <label class="range-field">
+            <span><b>Energy</b><output id="energy-output">—</output></span>
+            <input id="energy" name="energy" type="range" min="1" max="10" value="5">
+          </label>
+          <label class="range-field">
+            <span><b>Mood</b><output id="mood-output">—</output></span>
+            <input id="mood" name="mood" type="range" min="1" max="10" value="5">
+          </label>
+
+          <label>
+            <span>Training</span>
+            <select id="training-type" name="trainingType">
+              <option value="none">Not logged</option>
+              <option value="strength">Strength</option>
+              <option value="zone2">Easy Zone 2</option>
+              <option value="rest">Recovery / rest</option>
+              <option value="long">Long endurance</option>
+            </select>
+          </label>
+
+          <label>
+            <span>One-line note <small>optional</small></span>
+            <input id="daily-note" name="note" type="text" maxlength="500" placeholder="What helped today?">
+          </label>
+        </form>
+      </section>
+
+      <section class="view" data-view="trends" aria-labelledby="trends-heading" hidden>
+        <p class="eyebrow">Last 14 days</p>
+        <h2 id="trends-heading" class="page-title">Consistency, not perfection.</h2>
+        <article class="chart-card dark-card">
+          <div class="chart-key"><span><i class="key-score"></i>Daily score</span><span><i class="key-sleep"></i>Sleep</span></div>
+          <svg id="trend-chart" viewBox="0 0 700 300" role="img" aria-label="Daily score and sleep trend"></svg>
+        </article>
+        <div class="summary-grid" id="weekly-summary"></div>
+        <article class="review-card light-card">
+          <p class="eyebrow">Sunday review</p>
+          <h3>Keep only what helps.</h3>
+          <label><span>What worked?</span><textarea id="weekly-wins" maxlength="500" placeholder="Three short wins"></textarea></label>
+          <label><span>One adjustment</span><textarea id="weekly-adjustment" maxlength="500" placeholder="Change one thing next week"></textarea></label>
+          <button class="primary-button" id="save-weekly-review" type="button">Save weekly review</button>
+        </article>
+      </section>
+
+      <section class="view" data-view="labs" aria-labelledby="labs-heading" hidden>
+        <p class="eyebrow">Private baseline</p>
+        <h2 id="labs-heading" class="page-title">Know the signal. Ignore the noise.</h2>
+        <div id="lab-grid" class="lab-grid"></div>
+        <article class="info-card light-card">
+          <p class="eyebrow">Current interpretation</p>
+          <h3>No personal lab data is hosted.</h3>
+          <p>Import your private setup file once on this phone to populate this section. Imported values remain in this browser’s local storage.</p>
+        </article>
+        <article class="info-card dark-card">
+          <p class="eyebrow muted">Retest conditions</p>
+          <ul class="clean-list">
+            <li>Early morning and fasting</li>
+            <li>Same laboratory when possible</li>
+            <li>After several normal nights of sleep</li>
+            <li>Not during illness or immediately after a major endurance effort</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="view" data-view="plan" aria-labelledby="plan-heading" hidden>
+        <p class="eyebrow">12-week reset</p>
+        <h2 id="plan-heading" class="page-title">This week, made simple.</h2>
+        <article class="plan-hero dark-card">
+          <span class="week-number" id="week-number">Week 1</span>
+          <h3 id="week-focus">Recovery reset</h3>
+          <p id="week-description">Build a consistent sleep window before adding intensity or a calorie deficit.</p>
+        </article>
+        <div class="plan-stack">
+          <article class="plan-card light-card"><span>01</span><div><h3>Sleep</h3><p id="plan-sleep">6.5 hours in bed, then progress gradually.</p></div></article>
+          <article class="plan-card light-card"><span>02</span><div><h3>Strength</h3><p>Three to four planned sessions. Keep 1–3 reps in reserve.</p></div></article>
+          <article class="plan-card light-card"><span>03</span><div><h3>Cardio</h3><p>Two easy Zone 2 sessions. Pause ultra-volume unless race-specific.</p></div></article>
+          <article class="plan-card light-card"><span>04</span><div><h3>Nutrition</h3><p>About 150 g protein, whole foods, adequate carbs and fats.</p></div></article>
+          <article class="plan-card light-card"><span>05</span><div><h3>Supplements</h3><p>Creatine 5 g daily. Magnesium 200 mg optional. No vitamin D or zinc megadoses.</p></div></article>
+        </div>
+      </section>
+
+      <section class="view" data-view="settings" aria-labelledby="settings-heading" hidden>
+        <p class="eyebrow">Control</p>
+        <h2 id="settings-heading" class="page-title">Your data. Your device.</h2>
+        <article class="privacy-card dark-card">
+          <span class="privacy-icon" aria-hidden="true">✓</span>
+          <h3>Local by design.</h3>
+          <p>No account, analytics, cloud database, advertising ID, or remote health-data API. Check-ins and imported baselines stay in browser storage. Browser and cache storage are shared across this site’s origin, so this app uses its own validated storage key and cache prefix.</p>
+        </article>
+        <div class="settings-list light-card">
+          <button id="export-data" type="button"><span><b>Export backup</b><small>Private, unencrypted JSON copy</small></span><span>›</span></button>
+          <label class="settings-button" for="import-data"><span><b>Import backup</b><small>Strictly validates before replacing data</small></span><span>›</span></label>
+          <input id="import-data" type="file" accept="application/json" hidden>
+          <button id="theme-toggle" type="button"><span><b>Appearance</b><small>Switch dark or light mode</small></span><span id="theme-label">Dark</span></button>
+          <button id="delete-data" class="danger" type="button"><span><b>Reset tracked entries</b><small>Daily and weekly records only</small></span><span>›</span></button>
+        </div>
+        <p class="settings-footnote">This dashboard supports consistency and education. It does not diagnose, prescribe, or replace care from a qualified clinician.</p>
+      </section>
+    </main>
+
+    <nav class="tabbar" aria-label="Dashboard sections">
+      <button class="is-active" data-tab="today" type="button"><span aria-hidden="true">●</span><small>Today</small></button>
+      <button data-tab="trends" type="button"><span aria-hidden="true">↗</span><small>Trends</small></button>
+      <button data-tab="labs" type="button"><span aria-hidden="true">＋</span><small>Labs</small></button>
+      <button data-tab="plan" type="button"><span aria-hidden="true">□</span><small>Plan</small></button>
+      <button data-tab="settings" type="button"><span aria-hidden="true">•••</span><small>More</small></button>
+    </nav>
+  </div>
+
+  <dialog id="privacy-dialog">
+    <form method="dialog">
+      <button class="dialog-close" aria-label="Close privacy details">×</button>
+      <p class="eyebrow">Privacy model</p>
+      <h2>Nothing is uploaded.</h2>
+      <p>Check-ins and imported labs are stored in this browser’s local storage. Browser and cache storage are shared across this site’s origin, not isolated by URL path. The hosted files contain no personal health baseline. Nothing is uploaded.</p>
+      <p>Exported JSON backups are private but unencrypted. Protect them and export before clearing browser data or changing devices.</p>
+      <button class="primary-button" value="close">Done</button>
+    </form>
+  </dialog>
+
+  <script type="module" src="src/app.js?v=health-public-v3"></script>
+</body>
+</html>
