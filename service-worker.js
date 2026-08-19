@@ -1,14 +1,15 @@
 const CACHE_PREFIX = 'health-public-';
-const CACHE_NAME = 'health-public-v3';
+const CACHE_NAME = 'health-public-v4';
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=health-public-v3",
-  "./src/app.js?v=health-public-v3",
-  "./src/health-model.js?v=health-public-v3",
-  "./manifest.webmanifest?v=health-public-v3",
-  "./icons/icon-192.png?v=health-public-v3",
-  "./icons/icon-512.png?v=health-public-v3"
+  "./styles.css?v=health-public-v4",
+  "./src/app.js?v=health-public-v4",
+  "./src/health-model.js?v=health-public-v4",
+  "./src/health-coach.js?v=health-public-v4",
+  "./manifest.webmanifest?v=health-public-v4",
+  "./icons/icon-192.png?v=health-public-v4",
+  "./icons/icon-512.png?v=health-public-v4"
 ];
 
 self.addEventListener('install', (event) => {
