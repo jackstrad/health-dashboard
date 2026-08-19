@@ -4,7 +4,7 @@ export const BACKUP_MAX_BYTES = 10_000_000;
 export const HABITS = Object.freeze([
   { id: 'sleep', label: 'Sleep target', detail: 'Hit this week’s time-in-bed target' },
   { id: 'morningLight', label: 'Morning light', detail: '10 minutes outdoors after waking' },
-  { id: 'protein', label: 'Nutrition', detail: '150 g protein and mostly whole foods' },
+  { id: 'protein', label: 'Nutrition', detail: 'Protein at each meal and mostly whole foods' },
   { id: 'training', label: 'Train or recover', detail: 'Follow the planned session or rest day' },
   { id: 'creatine', label: 'Daily basics', detail: 'Creatine 5 g, alcohol zero, wind-down on time' },
 ]);
@@ -16,7 +16,8 @@ const TOP_LEVEL_KEYS = new Set([
 const PROFILE_KEYS = new Set(['age', 'heightIn', 'weightLb', 'bodyFatRange']);
 const LAB_KEYS = new Set(['totalTestosterone', 'shbg', 'vitaminD', 'zinc', 'magnesiumRbc']);
 const LAB_VALUE_KEYS = new Set(['value', 'unit', 'range', 'date', 'status']);
-const DAY_KEYS = new Set(['habits', 'metrics', 'updatedAt']);
+const DAY_KEYS = new Set(['habits', 'metrics', 'submittedAt', 'updatedAt']);
+const REQUIRED_DAY_KEYS = new Set(['habits', 'metrics', 'updatedAt']);
 const METRIC_KEYS = new Set(['sleepHours', 'weightLb', 'waistIn', 'energy', 'mood', 'trainingType', 'note']);
 const REVIEW_KEYS = new Set(['weekStart', 'wins', 'adjustment', 'createdAt']);
 const PREFERENCE_KEYS = new Set(['theme']);
@@ -88,6 +89,7 @@ function emptyDay() {
       trainingType: 'none',
       note: '',
     },
+    submittedAt: null,
     updatedAt: nowIso(),
   };
 }
@@ -120,6 +122,7 @@ export function toggleHabit(state, date, habitId, done) {
   if (typeof done !== 'boolean') throw new Error('habit completion must be boolean');
   const next = ensureDay(state, date);
   next.days[date].habits[habitId] = done;
+  next.days[date].submittedAt = null;
   next.days[date].updatedAt = nowIso();
   next.updatedAt = nowIso();
   return next;
@@ -158,6 +161,7 @@ export function updateDailyMetrics(state, date, patch) {
     validateMetric(key, value);
     next.days[date].metrics[key] = value;
   }
+  next.days[date].submittedAt = null;
   next.days[date].updatedAt = nowIso();
   next.updatedAt = nowIso();
   return next;
@@ -167,6 +171,27 @@ export function calculateDailyScore(state, date) {
   const habits = state.days[date]?.habits;
   if (!habits) return 0;
   return HABITS.reduce((score, { id }) => score + (habits[id] === true ? 1 : 0), 0);
+}
+
+export function submitDay(state, date) {
+  assertDate(date);
+  const next = ensureDay(state, date);
+  next.days[date].submittedAt = nowIso();
+  next.days[date].updatedAt = nowIso();
+  next.updatedAt = nowIso();
+  return next;
+}
+
+export function getDailySubmission(state, date) {
+  assertDate(date);
+  const day = state.days[date];
+  const submittedAt = day?.submittedAt ?? null;
+  return {
+    submitted: typeof submittedAt === 'string',
+    submittedAt,
+    score: calculateDailyScore(state, date),
+    missedHabitIds: HABITS.filter(({ id }) => day?.habits?.[id] !== true).map(({ id }) => id),
+  };
 }
 
 export function getSleepTarget(date, startDate) {
@@ -213,7 +238,7 @@ export function getRecommendedAction(state, date) {
   if (!day || !Number.isFinite(day.metrics.sleepHours) || day.metrics.sleepHours < target || !day.habits.sleep) {
     return `Protect tonight’s ${target}-hour sleep window.`;
   }
-  if (!day.habits.protein) return 'Finish the day near 150 g of protein with whole foods.';
+  if (!day.habits.protein) return 'Finish the day with a protein-rich whole-food meal.';
   if (!day.habits.training) return 'Complete the planned training or recovery session.';
   if (!day.habits.morningLight) return 'Get 10 minutes of outdoor light after waking.';
   if (!day.habits.creatine) return 'Take creatine 5 g and start wind-down on time.';
@@ -282,8 +307,11 @@ function validateImportedState(state) {
   for (const [date, day] of Object.entries(state.days)) {
     assertDate(date);
     assertExactKeys(day, DAY_KEYS, `day ${date}`);
-    assertRequiredKeys(day, DAY_KEYS, `day ${date}`);
+    assertRequiredKeys(day, REQUIRED_DAY_KEYS, `day ${date}`);
     assertTimestamp(day.updatedAt, `day ${date} updatedAt`);
+    if (day.submittedAt !== undefined && day.submittedAt !== null) {
+      assertTimestamp(day.submittedAt, `day ${date} submittedAt`);
+    }
     const habitKeys = new Set(HABITS.map(({ id }) => id));
     assertExactKeys(day.habits, habitKeys, `day ${date} habits`);
     assertRequiredKeys(day.habits, habitKeys, `day ${date} habits`);

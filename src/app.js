@@ -5,6 +5,8 @@ import {
   toggleHabit,
   updateDailyMetrics,
   calculateDailyScore,
+  submitDay,
+  getDailySubmission,
   getSleepTarget,
   getWeeklySummary,
   getRecommendedAction,
@@ -12,10 +14,11 @@ import {
   setTheme,
   exportState,
   importState,
-} from './health-model.js?v=health-public-v3';
+} from './health-model.js?v=health-public-v4';
+import { answerHealthQuestion, getDailyHealthTip } from './health-coach.js?v=health-public-v4';
 
 const STORAGE_KEY = 'health-dashboard.public.v1';
-const RELEASE = 'health-public-v3';
+const RELEASE = 'health-public-v4';
 const today = localDateKey(new Date());
 const emptyBaseline = { profile: {}, labs: {} };
 
@@ -114,10 +117,90 @@ function renderTodaySummary() {
   document.querySelector('#recommended-action').textContent = getRecommendedAction(state, today);
 }
 
+function renderDailySubmission() {
+  const receipt = getDailySubmission(state, today);
+  const card = document.querySelector('#daily-submission');
+  const status = document.querySelector('#submission-status');
+  const gaps = document.querySelector('#submission-gaps');
+  const button = document.querySelector('#submit-day');
+  const labels = Object.fromEntries(HABITS.map(({ id, label }) => [id, label]));
+
+  card.classList.toggle('is-submitted', receipt.submitted);
+  button.disabled = receipt.submitted;
+  button.textContent = receipt.submitted ? `Submitted · ${receipt.score}/5` : `Submit today · ${receipt.score}/5`;
+  if (!receipt.submitted) {
+    status.textContent = 'Not submitted yet';
+    gaps.textContent = receipt.score === 5
+      ? 'All five foundations are complete. Submit your daily receipt.'
+      : `Still open: ${receipt.missedHabitIds.map((id) => labels[id]).join(', ')}.`;
+    return;
+  }
+
+  const submittedTime = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+    .format(new Date(receipt.submittedAt));
+  status.textContent = `Submitted at ${submittedTime}`;
+  gaps.textContent = receipt.score === 5
+    ? 'All five foundations completed.'
+    : `Recorded ${receipt.score}/5. Missed: ${receipt.missedHabitIds.map((id) => labels[id]).join(', ')}.`;
+}
+
+function renderCoachTip() {
+  const tip = getDailyHealthTip(state, today);
+  const card = document.querySelector('#daily-health-tip');
+  card.querySelector('h3').textContent = tip.title;
+  card.querySelector('p').textContent = tip.body;
+}
+
+function renderCoachAnswer(answer) {
+  const container = document.querySelector('#coach-answer');
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'coach-answer-category';
+  eyebrow.textContent = answer.category;
+  const title = document.createElement('h3');
+  title.textContent = answer.title;
+  const summary = document.createElement('p');
+  summary.textContent = answer.summary;
+  const actions = document.createElement('ul');
+  actions.className = 'coach-action-list';
+  actions.replaceChildren(...answer.actions.map((action) => {
+    const item = document.createElement('li');
+    item.textContent = action;
+    return item;
+  }));
+  const nodes = [eyebrow, title, summary, actions];
+
+  if (answer.menu.length) {
+    const menu = document.createElement('div');
+    menu.className = 'coach-menu';
+    menu.replaceChildren(...answer.menu.map((entry) => {
+      const day = document.createElement('section');
+      const heading = document.createElement('h4');
+      heading.textContent = entry.day;
+      const meals = document.createElement('ul');
+      meals.replaceChildren(...entry.meals.map((meal) => {
+        const item = document.createElement('li');
+        item.textContent = meal;
+        return item;
+      }));
+      day.append(heading, meals);
+      return day;
+    }));
+    nodes.push(menu);
+  }
+
+  const disclaimer = document.createElement('small');
+  disclaimer.textContent = answer.disclaimer;
+  nodes.push(disclaimer);
+  container.replaceChildren(...nodes);
+  container.hidden = false;
+}
+
 function renderToday() {
   renderTodaySummary();
   renderHabits();
   renderCheckin();
+  renderDailySubmission();
+  renderCoachTip();
 }
 
 function renderHabits() {
@@ -331,7 +414,11 @@ document.querySelector('#habit-list').addEventListener('click', (event) => {
 
 for (const [selector, metric] of [['#sleep-hours', 'sleepHours'], ['#weight-lb', 'weightLb']]) {
   document.querySelector(selector).addEventListener('change', (event) => {
-    if (commit(updateDailyMetrics(state, today, { [metric]: numberOrNull(event.target.value) }))) renderTodaySummary();
+    if (commit(updateDailyMetrics(state, today, { [metric]: numberOrNull(event.target.value) }))) {
+      renderTodaySummary();
+      renderDailySubmission();
+      renderCoachTip();
+    }
   });
 }
 
@@ -339,16 +426,52 @@ for (const [selector, metric, output] of [['#energy', 'energy', '#energy-output'
   document.querySelector(selector).addEventListener('input', (event) => {
     const value = Number(event.target.value);
     document.querySelector(output).textContent = String(value);
-    if (commit(updateDailyMetrics(state, today, { [metric]: value }))) renderTrends();
+    if (commit(updateDailyMetrics(state, today, { [metric]: value }))) {
+      renderTrends();
+      renderDailySubmission();
+      renderCoachTip();
+    }
   });
 }
 
 document.querySelector('#training-type').addEventListener('change', (event) => {
-  if (commit(updateDailyMetrics(state, today, { trainingType: event.target.value }))) renderTrends();
+  if (commit(updateDailyMetrics(state, today, { trainingType: event.target.value }))) {
+    renderTrends();
+    renderDailySubmission();
+    renderCoachTip();
+  }
 });
 
 document.querySelector('#daily-note').addEventListener('change', (event) => {
-  commit(updateDailyMetrics(state, today, { note: event.target.value.trim() }));
+  if (commit(updateDailyMetrics(state, today, { note: event.target.value.trim() }))) renderDailySubmission();
+});
+
+document.querySelector('#submit-day').addEventListener('click', () => {
+  if (commit(submitDay(state, today))) {
+    renderDailySubmission();
+    flashSaved('Daily check-in submitted');
+  }
+});
+
+function askCoach(question) {
+  try {
+    renderCoachAnswer(answerHealthQuestion(state, today, question));
+  } catch (error) {
+    showStorageAlert(`Unable to answer locally: ${error.message}`);
+  }
+}
+
+document.querySelector('#coach-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const input = document.querySelector('#coach-question');
+  const question = input.value.trim();
+  if (!question) return;
+  askCoach(question);
+  input.value = '';
+});
+
+document.querySelectorAll('[data-coach-question]').forEach((button) => {
+  button.addEventListener('click', () => askCoach(button.dataset.coachQuestion));
 });
 
 document.querySelectorAll('[data-tab]').forEach((button) => {

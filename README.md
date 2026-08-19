@@ -14,7 +14,9 @@ A data-free, local-first health consistency dashboard designed for mobile use.
 
 - Complete five foundational habits.
 - Record sleep, weight, energy, mood, and training.
+- Submit a dated daily receipt; later edits automatically require resubmission.
 - Follow the single best-next-action prompt.
+- Ask the local Health Coach about priorities, nutrition, a weekly menu, or what to avoid. Questions are processed in memory, cleared after answering, and never uploaded.
 
 ## Weekly workflow
 
@@ -25,4 +27,4 @@ A data-free, local-first health consistency dashboard designed for mobile use.
 
 This dashboard supports consistency and education. It does not diagnose, prescribe, or replace care from a qualified clinician.
 
-Release: `health-public-v3`
+Release: `health-public-v4`
